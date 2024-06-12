@@ -7,6 +7,7 @@ typedef struct node
 {
     int machine;
     int duration;
+    int start;
 } operation;
 
 typedef struct
@@ -24,7 +25,9 @@ typedef struct
     int nThreads;
 } ThreadData;
 
-int*  currentTime;
+int*  machineEndTime;
+int*  jobEndTime;
+// int*  currentTime;
 pthread_mutex_t* mutex;
 
 //SCHEDULE JOBS
@@ -48,14 +51,17 @@ void* parallel(void* arg)
             int duration = operation->duration;
 
             pthread_mutex_lock(&mutex[machine]);
-            if (currentTime[machine] > 0)
-            {
-                currentTime[machine] += duration;
-            }
-            else
-            {
-                currentTime[machine] = duration;
-            }
+            operation->start = (jobEndTime[i] > machineEndTime[machine]) ? jobEndTime[i] : machineEndTime[machine];
+            jobEndTime[i] = operation->start + duration;
+            machineEndTime[machine] = operation->start + duration;
+            // if (currentTime[machine] > 0)
+            // {
+            //     currentTime[machine] += duration;
+            // }
+            // else
+            // {
+            //     currentTime[machine] = duration;
+            // }
             pthread_mutex_unlock(&mutex[machine]);
         }
     }
@@ -125,13 +131,21 @@ int main(int argc, char *argv[])
 
     readData(argv[1], &jobs, &numjobs, &nummachines);
 
-    currentTime = (int*) malloc(nummachines * sizeof(int));
+    // currentTime = (int*) malloc(nummachines * sizeof(int));
+    machineEndTime = (int*) malloc(nummachines * sizeof(int));
+    jobEndTime = (int*) malloc(numjobs * sizeof(int));
     mutex = (pthread_mutex_t*) malloc(nummachines * sizeof(pthread_mutex_t));
 
     for (int i = 0; i < nummachines; i++)
     {
-        currentTime[i] = 0;
+        // currentTime[i] = 0;
+        machineEndTime[i] = 0;
         pthread_mutex_init(&mutex[i], NULL);
+    }
+
+    for (int i = 0; i < numjobs; i++)
+    {
+        jobEndTime[i] = 0;
     }
 
     pthread_t* threads = (pthread_t*) malloc(nThreads * sizeof(pthread_t));
@@ -153,9 +167,15 @@ int main(int argc, char *argv[])
     }
 
     // PRINT RESULTS
-    for (int i = 0; i < nummachines; i++)
+    for (int i = 0; i < numjobs; i++)
     {
-        printf("Machine %d: %d\n", i + 1, currentTime[i]);
+        job *job = jobs + i;
+        printf("\nJob %d:\n", i + 1);
+        for (int j = 0; j < job->nOperations; j++)
+        {
+            operation *operation = job->operations + j;
+            printf("\tOperation %d -> Machine %d, Duration %d, Start Time %d\n", j + 1, operation->machine, operation->duration, operation->start);
+        }
     }
 
     // FREE MEMORY
@@ -165,7 +185,9 @@ int main(int argc, char *argv[])
     }
 
     free(jobs);
-    free(currentTime);
+    // free(currentTime);
+    free(machineEndTime);
+    free(jobEndTime);
     free(mutex);
     free(threads);
     free(data);
