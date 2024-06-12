@@ -7,6 +7,7 @@ typedef struct node
 {
     int machine;
     int duration;
+    int start;
 } operation;
 
 typedef struct
@@ -24,8 +25,9 @@ typedef struct
     int nThreads;
 } ThreadData;
 
-int*  currentTime;
-HANDLE* mutex;
+int* machineEndTime;
+int* jobEndTime;
+HANDLE* mutexes;
 
 //SCHEDULE JOBS
 DWORD WINAPI parallel(LPVOID arg)
@@ -47,16 +49,11 @@ DWORD WINAPI parallel(LPVOID arg)
             int machine = operation->machine - 1;
             int duration = operation->duration;
 
-            WaitForSingleObject(mutex[machine], INFINITE);
-            if (currentTime[machine] > 0)
-            {
-                currentTime[machine] += duration;
-            }
-            else
-            {
-                currentTime[machine] = duration;
-            }
-            ReleaseMutex(mutex[machine]);
+            WaitForSingleObject(mutexes[machine], INFINITE);
+            operation->start = (jobEndTime[i] > machineEndTime[machine]) ? jobEndTime[i] : machineEndTime[machine];
+            jobEndTime[i] = operation->start + duration;
+            machineEndTime[machine] = operation->start + duration;
+            ReleaseMutex(mutexes[machine]);
         }
     }
 
@@ -110,7 +107,6 @@ void readData(char *filename, job **jobs, int *numjobs, int *nummachines)
     fclose(file);
 }
 
-
 int main(int argc, char *argv[])
 {
     if (argc != 4)
@@ -125,13 +121,19 @@ int main(int argc, char *argv[])
 
     readData(argv[1], &jobs, &numjobs, &nummachines);
 
-    currentTime = (int*) malloc(nummachines * sizeof(int));
-    mutex = (HANDLE*) malloc(nummachines * sizeof(HANDLE));
+    machineEndTime = (int*) malloc(nummachines * sizeof(int));
+    jobEndTime = (int*) malloc(numjobs * sizeof(int));
+    mutexes = (HANDLE*) malloc(nummachines * sizeof(HANDLE));
 
     for (int i = 0; i < nummachines; i++)
     {
-        currentTime[i] = 0;
-        mutex[i] = CreateMutex(NULL, FALSE, NULL);
+        machineEndTime[i] = 0;
+        mutexes[i] = CreateMutex(NULL, FALSE, NULL);
+    }
+
+    for (int i = 0; i < numjobs; i++)
+    {
+        jobEndTime[i] = 0;
     }
 
     HANDLE* threads = (HANDLE*) malloc(nThreads * sizeof(HANDLE));
@@ -149,21 +151,33 @@ int main(int argc, char *argv[])
 
     WaitForMultipleObjects(nThreads, threads, TRUE, INFINITE);
 
-    // PRINT RESULTS
-    for (int i = 0; i < nummachines; i++)
+    for (int i = 0; i < nThreads; i++)
     {
-        printf("Machine %d: %d\n", i + 1, currentTime[i]);
+        CloseHandle(threads[i]);
+    }
+
+    // PRINT RESULTS
+    for (int i = 0; i < numjobs; i++)
+    {
+        job *job = jobs + i;
+        printf("\nJob %d:\n", i + 1);
+        for (int j = 0; j < job->nOperations; j++)
+        {
+            operation *operation = job->operations + j;
+            printf("\tOperation %d -> Machine %d, Duration %d, Start Time %d\n", j + 1, operation->machine, operation->duration, operation->start);
+        }
     }
 
     // FREE MEMORY
     for (int i = 0; i < nummachines; i++)
     {
-        CloseHandle(mutex[i]);
+        CloseHandle(mutexes[i]);
     }
 
     free(jobs);
-    free(currentTime);
-    free(mutex);
+    free(machineEndTime);
+    free(jobEndTime);
+    free(mutexes);
     free(threads);
     free(data);
 
