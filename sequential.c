@@ -6,6 +6,7 @@ typedef struct node
 {
     int machine;
     int duration;
+    int start;
 } operation;
 
 typedef struct
@@ -64,41 +65,28 @@ void readData(char *filename, job **jobs, int *numjobs, int *nummachines)
 // SCHEDULE JOBS
 void sequential(job *jobs, int numjobs, int nummachines)
 {
-
-    // DEBUG PRINT
-    //  printf("numjobs: %d\n", numjobs);
-    //  printf("nummachines: %d\n", nummachines);
-
     // ALLOCATE MEMORY
-    int *machines = (int *)calloc(nummachines, sizeof(int));
-    int *time = (int *)calloc(nummachines, sizeof(int));
+    int *machineTime = (int *)calloc(nummachines, sizeof(int));
+    int *jobTime = (int *)calloc(numjobs, sizeof(int));        
 
     for (int i = 0; i < numjobs; i++)
     {
-
-        // GET JOB
         job *job = jobs + i;
 
         for (int j = 0; j < job->nOperations; j++)
         {
-
-            // GET OPERATION
             operation *operation = job->operations + j;
 
-            // GET MACHINE AND DURATION
             int machine = operation->machine - 1;
             int duration = operation->duration;
 
-            // IF THE MACHNE IS ALREADY SCHEDULED ADD DURATION TO THE TIME, ELSE SET THE TIME AND JOB
-            if (machines[machine] == i)
-            {
-                time[machine] += duration;
-            }
-            else
-            {
-                time[machine] = duration;
-                machines[machine] = i;
-            }
+            // The start time of the current operation is the maximum of the end time of the last operation on the same machine
+            // and the end time of the last operation in the same job
+            operation->start = (jobTime[i] > machineTime[machine]) ? jobTime[i] : machineTime[machine];
+
+            // Update the end time for the current job and the current machine
+            jobTime[i] = operation->start + duration;
+            machineTime[machine] = operation->start + duration;
         }
     }
 
@@ -107,15 +95,15 @@ void sequential(job *jobs, int numjobs, int nummachines)
     // GET AND STORE THE MAXIMUM TIME
     for (int i = 0; i < nummachines; i++)
     {
-        if (time[i] > max)
+        if (machineTime[i] > max)
         {
-            max = time[i];
+            max = machineTime[i];
         }
     }
 
     printf("------------------");
 
-    // PRINT JOB, OPERATION, MACHINE AND DURATION
+    // PRINT JOB, OPERATION, MACHINE, DURATION, AND START TIME
     for (int i = 0; i < numjobs; i++)
     {
         job *job = jobs + i;
@@ -123,14 +111,14 @@ void sequential(job *jobs, int numjobs, int nummachines)
         for (int j = 0; j < job->nOperations; j++)
         {
             operation *operation = job->operations + j;
-            printf("\tOperation %d -> Machine %d, Duration %d\n", j + 1, operation->machine, operation->duration);
+            printf("\tOperation %d -> Machine %d, Duration %d, Start Time %d\n", j + 1, operation->machine, operation->duration, operation->start);
         }
     }
 
     printf("\n\nTOTAL TIME: %d\n", max);
 
-    free(machines);
-    free(time);
+    free(machineTime);
+    free(jobTime);
 }
 
 int main(int argc, char *argv[])
