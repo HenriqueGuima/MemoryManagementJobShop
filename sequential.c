@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define MAX_JOBS 10
+#define MAX_OPERATIONS 10
+
 // STRUCTURES
 typedef struct node
 {
@@ -14,11 +17,11 @@ typedef struct node
 typedef struct
 {
     int nOperations;
-    operation *operations;
+    operation operations[MAX_OPERATIONS];
 } job;
 
 // READ DATA FROM FILE
-void readData(char *filename, job **jobs, int *numjobs, int *nummachines)
+void readData(char *filename, job jobs[MAX_JOBS], int *numjobs, int *nummachines)
 {
     FILE *file = fopen(filename, "r");
 
@@ -32,24 +35,18 @@ void readData(char *filename, job **jobs, int *numjobs, int *nummachines)
     // READ NUMBER OF JOBS AND MACHINES
     fscanf(file, "%d %d", numjobs, nummachines);
 
-    // MEMORY ALLOCATION
-    *jobs = (job *)malloc(*numjobs * sizeof(job));
-
     // READ JOBS
     for (int i = 0; i < *numjobs; i++)
     {
-        job *job = *jobs + i;
+        job *job = &jobs[i];
         job->nOperations = 3; // Each job has 3 operations
 
         // DEBUG PRINT
-        // printf("\nJob %d has %d operations and %d machines\n", i + 1, job->nOperations, *nummachines);
-
-        // ALLOCATE MEMORY FOR OPERATIONS OF EACH JOB
-        job->operations = (operation *)malloc(job->nOperations * sizeof(operation));
+        printf("\nJob %d has %d operations and %d machines\n", i + 1, job->nOperations, *nummachines);
 
         for (int j = 0; j < job->nOperations; j++)
         {
-            operation *operation = job->operations + j;
+            operation *operation = &job->operations[j];
             fscanf(file, "%d %d", &operation->machine, &operation->duration);
             operation->start = -1; // Initialize start time to an invalid value
             operation->jobId = i;  // Store job ID
@@ -61,19 +58,19 @@ void readData(char *filename, job **jobs, int *numjobs, int *nummachines)
 }
 
 // SCHEDULE JOBS
-void sequential(job *jobs, int numjobs, int nummachines)
+void sequential(job jobs[MAX_JOBS], int numjobs, int nummachines)
 {
     // ALLOCATE MEMORY
-    int *machineTime = (int *)calloc(nummachines, sizeof(int));
-    int *jobTime = (int *)calloc(numjobs, sizeof(int));
+    int machineTime[MAX_JOBS] = {0};
+    int jobTime[MAX_JOBS] = {0};
 
     for (int i = 0; i < numjobs; i++)
     {
-        job *job = jobs + i;
+        job *job = &jobs[i];
 
         for (int j = 0; j < job->nOperations; j++)
         {
-            operation *operation = job->operations + j;
+            operation *operation = &job->operations[j];
 
             int machine = operation->machine;
             int duration = operation->duration;
@@ -107,10 +104,10 @@ void sequential(job *jobs, int numjobs, int nummachines)
         printf("Machine %d:\n", m);
         for (int i = 0; i < numjobs; i++)
         {
-            job *job = jobs + i;
+            job *job = &jobs[i];
             for (int j = 0; j < job->nOperations; j++)
             {
-                operation *operation = job->operations + j;
+                operation *operation = &job->operations[j];
                 if (operation->machine == m)
                 {
                     printf("\tJob %d (Operation %d) -> Start Time %d, Duration %d\n",
@@ -121,9 +118,6 @@ void sequential(job *jobs, int numjobs, int nummachines)
     }
 
     printf("\n\nTOTAL TIME: %d\n", max);
-
-    free(machineTime);
-    free(jobTime);
 }
 
 int main(int argc, char *argv[])
@@ -134,19 +128,11 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    job *jobs;
+    job jobs[MAX_JOBS];
     int numjobs, nummachines;
 
-    readData(argv[1], &jobs, &numjobs, &nummachines);
+    readData(argv[1], jobs, &numjobs, &nummachines);
     sequential(jobs, numjobs, nummachines);
-
-    // FREE MEMORY
-    for (int i = 0; i < numjobs; i++)
-    {
-        free(jobs[i].operations);
-    }
-
-    free(jobs);
 
     return 0;
 }
