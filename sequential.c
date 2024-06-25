@@ -7,6 +7,8 @@ typedef struct node
     int machine;
     int duration;
     int start;
+    int jobId;
+    int opId;
 } operation;
 
 typedef struct
@@ -37,25 +39,21 @@ void readData(char *filename, job **jobs, int *numjobs, int *nummachines)
     for (int i = 0; i < *numjobs; i++)
     {
         job *job = *jobs + i;
-        fscanf(file, "%d", &job->nOperations);
+        job->nOperations = 3; // Each job has 3 operations
 
         // DEBUG PRINT
-        printf("\nJob %d has %d operations and %d machines\n", i + 1, job->nOperations, *nummachines);
+        // printf("\nJob %d has %d operations and %d machines\n", i + 1, job->nOperations, *nummachines);
 
-        // READ THE NUMBER OF OPERATIONS PER JOB AND ALLOCATE MEMORY FOR OPERATIONS OF EACH JOB
-        if (job->nOperations > 0)
-        {
-            job->operations = (operation *)malloc(job->nOperations * sizeof(operation));
+        // ALLOCATE MEMORY FOR OPERATIONS OF EACH JOB
+        job->operations = (operation *)malloc(job->nOperations * sizeof(operation));
 
-            for (int j = 0; j < job->nOperations; j++)
-            {
-                operation *operation = job->operations + j;
-                fscanf(file, "%d %d", &operation->machine, &operation->duration);
-            }
-        }
-        else
+        for (int j = 0; j < job->nOperations; j++)
         {
-            job->operations = NULL;
+            operation *operation = job->operations + j;
+            fscanf(file, "%d %d", &operation->machine, &operation->duration);
+            operation->start = -1; // Initialize start time to an invalid value
+            operation->jobId = i;  // Store job ID
+            operation->opId = j;   // Store operation ID
         }
     }
 
@@ -67,7 +65,7 @@ void sequential(job *jobs, int numjobs, int nummachines)
 {
     // ALLOCATE MEMORY
     int *machineTime = (int *)calloc(nummachines, sizeof(int));
-    int *jobTime = (int *)calloc(numjobs, sizeof(int));        
+    int *jobTime = (int *)calloc(numjobs, sizeof(int));
 
     for (int i = 0; i < numjobs; i++)
     {
@@ -77,7 +75,7 @@ void sequential(job *jobs, int numjobs, int nummachines)
         {
             operation *operation = job->operations + j;
 
-            int machine = operation->machine - 1;
+            int machine = operation->machine;
             int duration = operation->duration;
 
             // The start time of the current operation is the maximum of the end time of the last operation on the same machine
@@ -101,17 +99,24 @@ void sequential(job *jobs, int numjobs, int nummachines)
         }
     }
 
-    printf("------------------");
+    printf("------------------\n");
 
-    // PRINT JOB, OPERATION, MACHINE, DURATION, AND START TIME
-    for (int i = 0; i < numjobs; i++)
+    // PRINT SCHEDULED OPERATIONS BY MACHINE
+    for (int m = 0; m < nummachines; m++)
     {
-        job *job = jobs + i;
-        printf("\nJob %d:\n", i + 1);
-        for (int j = 0; j < job->nOperations; j++)
+        printf("Machine %d:\n", m);
+        for (int i = 0; i < numjobs; i++)
         {
-            operation *operation = job->operations + j;
-            printf("\tOperation %d -> Machine %d, Duration %d, Start Time %d\n", j + 1, operation->machine, operation->duration, operation->start);
+            job *job = jobs + i;
+            for (int j = 0; j < job->nOperations; j++)
+            {
+                operation *operation = job->operations + j;
+                if (operation->machine == m)
+                {
+                    printf("\tJob %d (Operation %d) -> Start Time %d, Duration %d\n",
+                           operation->jobId, operation->opId, operation->start, operation->duration);
+                }
+            }
         }
     }
 
@@ -123,9 +128,9 @@ void sequential(job *jobs, int numjobs, int nummachines)
 
 int main(int argc, char *argv[])
 {
-    if (argc != 3)
+    if (argc != 2)
     {
-        fprintf(stderr, "Usage: %s <input file> <output file>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <input file>\n", argv[0]);
         return 1;
     }
 
