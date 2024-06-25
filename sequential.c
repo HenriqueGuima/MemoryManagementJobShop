@@ -120,6 +120,49 @@ void sequential(job jobs[MAX_JOBS], int numjobs, int nummachines)
     printf("\n\nTOTAL TIME: %d\n", max);
 }
 
+// WRITE DATA TO FILE
+void writeData(char *filename, job jobs[MAX_JOBS], int numjobs, int nummachines)
+{
+    FILE *file = fopen(filename, "w");
+
+    // CHECK IF FILE WAS OPENED
+    if (file == NULL)
+    {
+        fprintf(stderr, "Couldn't open file %s\n", filename);
+        exit(1);
+    }
+
+    // WRITE NUMBER OF JOBS AND MACHINES
+    fprintf(file, "%d %d\n", numjobs, nummachines);
+
+    // WRITE JOBS
+
+    for (int m = 0; m < nummachines; m++)
+    {
+        fprintf(file, "Machine %d:\n", m);
+        for (int i = 0; i < numjobs; i++)
+        {
+            job *job = &jobs[i];
+
+            for (int j = 0; j < job->nOperations; j++)
+            {
+                operation *operation = &job->operations[j];
+                // fprintf(file, "Machine: %d | Duration: %d | Start: %d | Job: %d | Operation: %d\n", operation->machine, operation->duration, operation->start, operation->jobId, operation->opId);
+
+                // fprintf(file, "%d %d %d %d %d\n", operation->machine, operation->duration, operation->start, operation->jobId, operation->opId);
+
+                if (operation->machine == m)
+                {
+                    fprintf(file, "\tJob %d (Operation %d) -> Start Time %d, Duration %d\n",
+                           operation->jobId, operation->opId, operation->start, operation->duration);
+                }
+            }
+        }
+    }
+
+    fclose(file);
+}
+
 int main(int argc, char *argv[])
 {
     if (argc != 2)
@@ -133,6 +176,7 @@ int main(int argc, char *argv[])
 
     readData(argv[1], jobs, &numjobs, &nummachines);
     sequential(jobs, numjobs, nummachines);
+    writeData("output.txt", jobs, numjobs, nummachines);
 
     return 0;
 }
