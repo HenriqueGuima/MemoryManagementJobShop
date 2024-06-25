@@ -163,6 +163,70 @@ void writeData(char *filename, job jobs[MAX_JOBS], int numjobs, int nummachines)
     fclose(file);
 }
 
+// PERFORMANCE EVALUATION AND SAVE TO A FILE
+void performanceEvaluation(char *filename, job jobs[MAX_JOBS], int numjobs, int nummachines)
+{
+    FILE *file = fopen(filename , "w");
+
+    // CHECK IF FILE WAS OPENED
+    if (file == NULL)
+    {
+        fprintf(stderr, "Couldn't open file %s\n", filename);
+        exit(1);
+    }
+
+    int totalCompletionTime = 0;
+    int machineTime[MAX_JOBS] = {0};
+    int jobCompletionTime[MAX_JOBS] = {0};
+    double machineUtilization[MAX_JOBS] = {0.0};
+
+    for (int i = 0; i < numjobs; i++)
+    {
+        job *job = &jobs[i];
+
+        for (int j = 0; j < job->nOperations; j++)
+        {
+            operation *operation = &job->operations[j];
+
+            int machine = operation->machine;
+            int duration = operation->duration;
+
+            operation->start = (jobCompletionTime[i] > machineTime[machine]) ? jobCompletionTime[i] : machineTime[machine];
+
+            jobCompletionTime[i] = operation->start + duration;
+            machineTime[machine] = operation->start + duration;
+
+            totalCompletionTime = (totalCompletionTime > jobCompletionTime[i]) ? totalCompletionTime : jobCompletionTime[i];
+        }
+    }
+
+    // MACHINE UTILIZATION
+    for (int m = 0; m < nummachines; m++)
+    {
+        fprintf(file, "Machine %d Utilization: %.2f\n", m, machineUtilization[m]);
+    }
+
+    // JOB COMPLETION TIME
+    for (int i = 0; i < numjobs; i++)
+    {
+        fprintf(file, "Job %d Completion Time: %d\n", i, jobCompletionTime[i]);
+    }
+
+        // TOTAL COMPLETION TIME
+    for (int i = 0; i < nummachines; i++)
+    {
+        machineUtilization[i] = (double)machineTime[i] / totalCompletionTime;
+    }
+
+    fprintf(file, "Total Completion Time: %d\n", totalCompletionTime);
+
+    fclose(file);
+
+    printf("Performance evaluation saved to %s\n", filename);
+
+}
+
+
 int main(int argc, char *argv[])
 {
     if (argc != 2)
@@ -177,6 +241,6 @@ int main(int argc, char *argv[])
     readData(argv[1], jobs, &numjobs, &nummachines);
     sequential(jobs, numjobs, nummachines);
     writeData("output.txt", jobs, numjobs, nummachines);
-
+    performanceEvaluation("performance.txt", jobs, numjobs, nummachines);
     return 0;
 }
