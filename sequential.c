@@ -39,7 +39,7 @@ void readData(char *filename, job jobs[MAX_JOBS], int *numjobs, int *nummachines
     for (int i = 0; i < *numjobs; i++)
     {
         job *job = &jobs[i];
-        job->nOperations = 3; // Each job has 3 operations
+        job->nOperations = 3;
 
         // DEBUG PRINT
         printf("\nJob %d has %d operations and %d machines\n", i + 1, job->nOperations, *nummachines);
@@ -48,9 +48,9 @@ void readData(char *filename, job jobs[MAX_JOBS], int *numjobs, int *nummachines
         {
             operation *operation = &job->operations[j];
             fscanf(file, "%d %d", &operation->machine, &operation->duration);
-            operation->start = -1; // Initialize start time to an invalid value
-            operation->jobId = i;  // Store job ID
-            operation->opId = j;   // Store operation ID
+            operation->start = -1; // INITIALIZE START TIME
+            operation->jobId = i;  // STORE JOB ID
+            operation->opId = j;   // STORE OPERATION ID
         }
     }
 
@@ -75,11 +75,11 @@ void sequential(job jobs[MAX_JOBS], int numjobs, int nummachines)
             int machine = operation->machine;
             int duration = operation->duration;
 
-            // The start time of the current operation is the maximum of the end time of the last operation on the same machine
-            // and the end time of the last operation in the same job
+            // THE START TIME OF THE CURRENT OPERATION IS THE MAXIMUM OF THE END TIME OF THE LAST OPERATION ON THE SAME MACHINE
+            // AND THE END TIME OF THE LAST OPERATION IN THE SAME JOB
             operation->start = (jobTime[i] > machineTime[machine]) ? jobTime[i] : machineTime[machine];
 
-            // Update the end time for the current job and the current machine
+            // UPDATE THE END TIME FOR THE CURRENT JOB AND THE CURRENT MACHINE
             jobTime[i] = operation->start + duration;
             machineTime[machine] = operation->start + duration;
         }
